@@ -1,0 +1,101 @@
+import pygame
+
+class Fighter(): # CRIA UM OBJETO FIGHTER COM UMA POSICAO INICIAL (x, y) E UM RETANGULO (rect) QUE REPRESENTA O LUTADOR.
+
+    def __init__(self, x, y, data, sprite_sheet, animation_steps): # METODO INIT INICIALIZA OS OBJETOS DA CLASSE.
+        self.size = data[0]
+        self.flip = False # VIRA O OBJETO.
+        self.animation_list = self.load_images(sprite_sheet, animation_steps)
+        self.action = 0 # 0:IDLE, 1:WALK, 2:JUMP, 3:ATTACK1, 4:ATTACK2, 5:HIT, 6:DEATH
+        self.rect = pygame.Rect((x, y, 80, 180)) # RETANGULO PYGAME RECEBE COORDENADAS, LARGURA DE 80 PIXELS E ALTURA DE 180 PIXELS
+        self.vel_y = 0  # VELOCIDADE VERTICAL INICIAL.
+        self.jump = False  # INICIALMENTE O LUTADOR NAO ESTA PULANDO.
+        self.attacking = False  # INICIALMENTE O LUTADOR NAO ESTA ATACANDO.
+        self.attack_type = 0  # INICIALIZA O ATAQUE COM O VALOR DE ZERO.
+        self.health = 100 # INICIALIZA O VALOR DE PONTOS DE VIDA.
+
+    def load_images(self, sprite_sheet, animation_steps):
+
+        # EXTRAIR IMAGENS DOS SPRITES.
+        animation_list = []
+        for y, animation in enumerate(animation_steps):
+            temp_img_list = []
+            for x in range(animation):
+                temp_img = sprite_sheet.subsurface(x * self.size, y * self.size, self.size, self.size)
+                temp_img_list.append(temp_img)
+            animation_list.append(temp_img_list)
+        return animation_list
+
+    def move(self, screen_width, screen_height, surface, target): # METODO PARA ATUALIZAR A POSICAO NA TELA
+        SPEED = 10  # VELOCIDADE DE MOVIMENTO
+        GRAVITY = 2  # GRAVIDADE
+        dx = 0  # DESLOCAMENTO HORIZONTAL
+        dy = 0  # DESLOCAMENTO VERTICAL
+
+        # OBTÉM AS TECLAS PRESSIONADAS PELO JOGADOR.
+        key = pygame.key.get_pressed()
+
+        if not self.attacking: # SE O JOGADOR NAO ESTIVER ATACANDO...
+
+            # MOVIMENTO HORIZONTAL.
+            if key[pygame.K_a]: # SE APERTAR O BOTAO 'A'...
+                dx = -SPEED  # MOVE PARA ESQUERDA
+            if key[pygame.K_d]: # SE APERTAR O BOTAO 'D'...
+                dx = SPEED  # MOVE PARA DIREITA.
+
+            # PULO.
+            if key[pygame.K_w] and not self.jump: # SE O JOGADOR NAO ESTIVER PULANDO...
+
+                self.vel_y = -30  # APLICA A FORCA PARA CIMA.
+                self.jump = True # PULO É VERDADEIRO.
+
+            # ATAQUE.
+            if key[pygame.K_r] or key[pygame.K_t]: # SE APERTAT O BOTAO 'R' OU 'T'...
+
+                self.attack(surface, target) #O METODO É ATIVADO E ELE INTERAGE COM A SUPERFICIE E O ALVO DO ATAQUE.
+
+                # DETERMINA QUAL O TIPO DE ATAQUE É USADO.
+                if key[pygame.K_r]: # SE APERTAR O BOTAO 'R'...
+                    self.attack_type = 1  # ATAQUE TIPO 1.
+                if key[pygame.K_t]: # SE APERTAR O BOTAO 'T'...
+                    self.attack_type = 2  # ATAQUE TIPO 2.
+
+        # APLICA A GRAVIDADE.
+        self.vel_y += GRAVITY
+        dy += self.vel_y
+
+        # GARANTE QUE O JOGADOR PERMANECA NA TELA.
+        if self.rect.left + dx < 0: # SE O DESLOCAMENTO PRO LADO ESQUERDO FOR MAIOR QUE A LARGURA DA TELA...
+            dx = -self.rect.left # EMPURRA O OBJETO DE VOLTA PARA A TELA.
+        if self.rect.right + dx > screen_width: # SE O DESLOCAMENTO PRO LADO DIREITO FOR MAIOR QUE A LARGURA DA TELA...
+            dx = screen_width - self.rect.right # EMPURRA O OBJETO DE VOLTA PARA A TELA.
+        if self.rect.bottom + dy > screen_height - 110: # SE O DESLOCAMENTO HORIZONTAL FOR MAIOR QUE A ALTURA DA TELA...
+            self.vel_y = 0 # PARA O MOVIMENTO DO JOGADOR FAZENDO-O SER PUXADO PELA GRAVIDADE.
+            self.jump = False # APLICA O PULO COMO FALSO.
+            dy = screen_height - 110 - self.rect.bottom # MANTÉM O JOGADOR NO CHAO.
+
+        # GARANTE QUE OS JOGADORES ESTEJAM SE ENCARANDO.
+        if target.rect.centerx > self.rect.centerx: # SE O ALVO NAO ESTIVER NA POSICAO INVERSA...
+            self.flip = False # O LUTADOR NAO SE VIRA.
+        else: # DO CONTRARIO... 
+            self.flip = True # O LUTADOR SE VIRA.
+
+
+        # ATUALIZA A POSICAO DO JOGADOR.
+        self.rect.x += dx # ADICIONA A COORDENADA ATUAL DE LARGURA.
+        self.rect.y += dy # ADICIONA A COORDENADA ATUAL DE ALTURA.
+
+    def attack(self, surface, target): # MÉTODO DE ATAQUE.
+        self.attacking = True # DEFINO ESTADO DE ATAQUE.
+        attacking_rect = pygame.Rect(self.rect.centerx - (2 * self.rect.width * self.flip), self.rect.y, 2 * self.rect.width, self.rect.height)
+        # DEFINE UM NOVO RETANGULO QUE É O SEU RANGE DE ATAQUE.
+
+        if attacking_rect.colliderect(target.rect): # SE O RETANGULO CRIADO COLIDE COM O ALVO...
+            target.health -= 10 # SUBTRAI 10 DO VALOR DE PONTOS DE VIDA.
+
+        # DESENHA UM RETANGULO DE COR VERDE PARA SIMBOLIZAR O RANGE.
+        pygame.draw.rect(surface, (0, 255, 0), attacking_rect)
+
+    def draw(self, surface):
+        # DESENHA UM RETANGULO DE COR VERMELHA PARA SIMBOLIZAR O LUTADOR.
+        pygame.draw.rect(surface, (255, 0, 0), self.rect)
